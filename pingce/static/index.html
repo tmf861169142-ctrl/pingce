@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多智能体评测系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+        }
+        .card {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            border: none;
+            overflow: hidden;
+        }
+        .card-header {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .card-body {
+            padding: 2rem;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 200px;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            padding: 1rem;
+            font-size: 1rem;
+        }
+        textarea:focus {
+            border-color: #4facfe;
+            box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25);
+        }
+        .btn-primary {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            border: none;
+            border-radius: 50px;
+            padding: 0.75rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+        .result-section {
+            margin-top: 30px;
+        }
+        .atom-card {
+            margin-bottom: 20px;
+            border-left: 4px solid #4facfe;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .atom-card .card-body {
+            padding: 1.5rem;
+        }
+        .reviewer-card {
+            margin-top: 10px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border-left: 3px solid #00f2fe;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+        }
+        .spinner-border {
+            width: 4rem;
+            height: 4rem;
+            color: #4facfe;
+        }
+        .accuracy-badge {
+            font-size: 1.3rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            font-weight: 600;
+        }
+        .non-fact {
+            color: #ff6b6b;
+            font-weight: 600;
+        }
+        .fact {
+            color: #4ecdc4;
+            font-weight: 600;
+        }
+        h1, h2, h3, h4, h5 {
+            font-weight: 700;
+            color: #333;
+        }
+        .summary {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5 mb-5">
+        <h1 class="text-center mb-5 text-white">多智能体评测系统</h1>
+        
+        <div class="card mb-5">
+            <div class="card-header">
+                <h2>评测输入</h2>
+                <p class="text-muted small">提示：回车触发评测，Command+回车换行</p>
+            </div>
+            <div class="card-body">
+                <form id="evaluationForm">
+                    <div class="mb-3">
+                        <label for="content" class="form-label">待评测内容</label>
+                        <textarea class="form-control" id="content" placeholder="请输入待评测的内容" required rows="5" style="resize: vertical;"></textarea>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">开始评测</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <p class="mt-4">正在进行评测，请稍候...</p>
+        </div>
+        
+        <div class="result-section" id="resultSection" style="display: none;">
+            <div class="card mb-5">
+            <div class="card-header">
+                <h2>评测结果</h2>
+                <p class="text-muted small">置信度：表示评审员对其判断的自信程度，范围0-100%</p>
+            </div>
+                <div class="card-body">
+                    <h3>整体评测</h3>
+                    <div class="d-flex justify-content-between align-items-center mt-3 mb-4">
+                        <div>
+                            <p class="mb-1"><strong>总原子论断数:</strong> <span id="totalAtoms"></span></p>
+                            <p class="mb-1"><strong>正确数:</strong> <span id="trueCount"></span></p>
+                            <p class="mb-1"><strong>错误数:</strong> <span id="falseCount"></span></p>
+                        </div>
+                        <span class="accuracy-badge" id="accuracy"></span>
+                    </div>
+                    <p class="mt-3 summary" id="summary"></p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3>原子论断详细评测</h3>
+                </div>
+                <div class="card-body">
+                    <div id="atomResults"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 添加键盘事件处理
+        document.getElementById('content').addEventListener('keydown', function(e) {
+            // 回车触发评测，command+回车换行
+            if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) {
+                e.preventDefault();
+                document.getElementById('evaluationForm').dispatchEvent(new Event('submit'));
+            }
+        });
+        
+        document.getElementById('evaluationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const content = document.getElementById('content').value;
+            
+            // 显示加载状态
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultSection').style.display = 'block';
+            
+            // 初始化结果区域
+            document.getElementById('totalAtoms').textContent = '计算中...';
+            document.getElementById('trueCount').textContent = '计算中...';
+            document.getElementById('falseCount').textContent = '计算中...';
+            document.getElementById('accuracy').textContent = '计算中...';
+            document.getElementById('summary').textContent = '正在分析...';
+            document.getElementById('atomResults').innerHTML = '<p class="text-center">正在生成评测结果...</p>';
+            
+            try {
+                // 使用流式请求获取结果
+                const response = await fetch('/evaluate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question: '', answer: content })
+                });
+                
+                if (!response.ok) {
+                    // 尝试获取详细错误信息
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || '评测失败');
+                }
+                
+                const result = await response.json();
+                displayResults(result);
+            } catch (error) {
+                // 显示详细错误信息
+                alert('评测过程中出错: ' + error.message);
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+        
+        function displayResults(data) {
+            // 检查是否存在非事实性论断
+            const hasNonFact = data.finalResult.atomResults.some(atom => atom.finalJudgment === 'NON_FACT');
+            
+            // 显示整体评测结果
+            document.getElementById('totalAtoms').textContent = data.finalResult.totalAtoms;
+            document.getElementById('trueCount').textContent = data.finalResult.trueCount;
+            document.getElementById('falseCount').textContent = data.finalResult.falseCount;
+            document.getElementById('accuracy').textContent = data.finalResult.accuracy;
+            
+            // 如果存在非事实性论断，在整体评测部分显示
+            if (hasNonFact) {
+                document.getElementById('summary').textContent = data.finalResult.summary + ' 其中包含非事实性论断，这些论断无法用正确与否进行评判。';
+            } else {
+                document.getElementById('summary').textContent = data.finalResult.summary;
+            }
+            
+            // 显示原子论断详细评测
+            const atomResultsDiv = document.getElementById('atomResults');
+            atomResultsDiv.innerHTML = '';
+            
+            data.finalResult.atomResults.forEach(atomResult => {
+                const atomCard = document.createElement('div');
+                atomCard.className = 'card atom-card mb-3';
+                
+                // 检查是否是事实性论断
+                const isNonFact = atomResult.finalJudgment === 'NON_FACT';
+                const judgmentClass = isNonFact ? 'non-fact' : (atomResult.finalJudgment === 'TRUE' ? 'text-success' : 'text-danger');
+                const judgmentText = isNonFact ? '非事实性论断' : atomResult.finalJudgment;
+                
+                atomCard.innerHTML = `
+                    <div class="card-body">
+                        <h4>原子论断 ${atomResult.atomId.split('_')[1]}</h4>
+                        <p class="mb-2"><strong>内容:</strong> ${atomResult.atomContent}</p>
+                        <p class="mb-3"><strong>最终判断:</strong> <span class="${judgmentClass}">${judgmentText}</span></p>
+                        <p class="mb-3"><strong>判决理由:</strong> ${atomResult.judgmentReason}</p>
+                        <h5>评审员意见</h5>
+                        <div class="reviewers-container">
+                            ${atomResult.reviews.map(review => {
+                                const reviewIsNonFact = review.judgment === 'NON_FACT';
+                                const reviewJudgmentClass = reviewIsNonFact ? 'non-fact' : (review.judgment === 'TRUE' ? 'text-success' : 'text-danger');
+                                const reviewJudgmentText = reviewIsNonFact ? '非事实性论断' : review.judgment;
+                                return `
+                                    <div class="reviewer-card">
+                                        <p><strong>评审员 ${review.reviewerId.split('_')[1]}:</strong> <span class="${reviewJudgmentClass}">${reviewJudgmentText}</span> (置信度: ${review.confidence}%)</p>
+                                        <p><strong>理由:</strong> ${review.reasoning}</p>
+                                        ${review.evidence.length > 0 ? `<p><strong>证据:</strong> ${review.evidence.join(', ')}</p>` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+                
+                atomResultsDiv.appendChild(atomCard);
+                
+                // 滚动到最新添加的卡片
+                atomCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+            
+            // 隐藏加载状态
+            document.getElementById('loading').style.display = 'none';
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
